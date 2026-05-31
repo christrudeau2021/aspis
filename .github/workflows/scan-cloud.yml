@@ -1,0 +1,105 @@
+name: Cloud Security Scan (Prowler)
+
+on:
+  schedule:
+    - cron: '0 3 * * 1'  # Weekly Monday 3am UTC
+  workflow_dispatch:
+    inputs:
+      client_id:
+        description: 'Aspis client UUID'
+        required: true
+      provider:
+        description: 'Cloud provider (azure/aws/gcp/m365)'
+        default: 'azure'
+
+env:
+  CLIENT_ID: ${{ vars.ASPIS_CLIENT_ID }}
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+
+jobs:
+  prowler-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Prowler
+        run: pip install prowler
+
+      - name: Register scan start
+        id: register
+        run: |
+          RESPONSE=$(curl -s -X POST "$SUPABASE_URL/rest/v1/scan_jobs" \
+            -H "apikey: $SUPABASE_SERVICE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=representation" \
+            -d "{
+              \"client_id\": \"$CLIENT_ID\",
+              \"scanner\": \"prowler\",
+              \"status\": \"running\",
+              \"trigger\": \"${{ github.event.inputs.trigger || 'scheduled' }}\",
+              \"started_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",
+              \"run_url\": \"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
+            }")
+          echo "scan_job_id=$(echo $RESPONSE | jq -r '.[0].id')" >> $GITHUB_OUTPUT
+
+      # Azure / M365 scan
+      - name: Run Prowler Azure scan
+        if: ${{ vars.PROWLER_PROVIDER == 'azure' || github.event.inputs.provider == 'azure' }}
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        run: |
+          prowler azure \
+            --sp-env-auth \
+            --services entra defender m365 \
+            --compliance cis_ms365_v4.0 \
+            --output-formats json \
+            --output-directory ./scan-results
+
+      # AWS scan (for clients with AWS)
+      - name: Run Prowler AWS scan
+        if: ${{ vars.PROWLER_PROVIDER == 'aws' || github.event.inputs.provider == 'aws' }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: us-east-1
+        run: |
+          prowler aws \
+            --compliance cis_aws_foundations_benchmark_v3.0.0 \
+            --output-formats json \
+            --output-directory ./scan-results
+
+      - name: Upload findings to Supabase
+        if: always()
+        run: |
+          node .github/scripts/upload-findings.js \
+            --scanner prowler \
+            --client-id "$CLIENT_ID" \
+            --scan-job-id "${{ steps.register.outputs.scan_job_id }}" \
+            --results-dir ./scan-results
+
+      - name: Mark scan complete
+        if: always()
+        run: |
+          STATUS=$([[ "${{ job.status }}" == "success" ]] && echo "complete" || echo "failed")
+          curl -s -X PATCH "$SUPABASE_URL/rest/v1/scan_jobs?id=eq.${{ steps.register.outputs.scan_job_id }}" \
+            -H "apikey: $SUPABASE_SERVICE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"status\": \"$STATUS\", \"completed_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: prowler-results-${{ github.run_id }}
+          path: ./scan-results
+          retention-days: 30

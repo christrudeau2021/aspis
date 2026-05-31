@@ -1,0 +1,83 @@
+name: M365 Security Scan (Maester)
+
+on:
+  schedule:
+    # Daily at 2am UTC — adjust per client via repository variable
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      client_id:
+        description: 'Aspis client UUID'
+        required: true
+      trigger:
+        description: 'Trigger type'
+        default: 'manual'
+
+env:
+  CLIENT_ID: ${{ vars.ASPIS_CLIENT_ID }}
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Register scan job start in Supabase
+      - name: Register scan start
+        id: register
+        run: |
+          RESPONSE=$(curl -s -X POST "$SUPABASE_URL/rest/v1/scan_jobs" \
+            -H "apikey: $SUPABASE_SERVICE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=representation" \
+            -d '{
+              "client_id": "${{ env.CLIENT_ID }}",
+              "scanner": "maester",
+              "status": "running",
+              "trigger": "${{ github.event.inputs.trigger || 'scheduled' }}",
+              "started_at": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'",
+              "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }')
+          echo "scan_job_id=$(echo $RESPONSE | jq -r '.[0].id')" >> $GITHUB_OUTPUT
+
+      # Run Maester M365 scan
+      - name: Run Maester M365 scan
+        uses: maester365/maester@main
+        with:
+          tenant_id: ${{ secrets.M365_TENANT_ID }}
+          client_id: ${{ secrets.M365_CLIENT_ID }}
+          client_secret: ${{ secrets.M365_CLIENT_SECRET }}
+          include_tags: 'CISA,CIS,Maester'
+          output_folder: ./scan-results
+
+      # Parse and upload findings to Supabase
+      - name: Upload findings
+        if: always()
+        run: |
+          node .github/scripts/upload-findings.js \
+            --scanner maester \
+            --client-id "${{ env.CLIENT_ID }}" \
+            --scan-job-id "${{ steps.register.outputs.scan_job_id }}" \
+            --results-dir ./scan-results
+
+      # Update scan job status
+      - name: Mark scan complete
+        if: always()
+        run: |
+          STATUS=${{ job.status == 'success' && 'complete' || 'failed' }}
+          curl -s -X PATCH "$SUPABASE_URL/rest/v1/scan_jobs?id=eq.${{ steps.register.outputs.scan_job_id }}" \
+            -H "apikey: $SUPABASE_SERVICE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"status\": \"$STATUS\", \"completed_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+
+      - name: Upload scan artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scan-results-${{ github.run_id }}
+          path: ./scan-results
+          retention-days: 30
