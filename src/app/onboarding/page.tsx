@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { createClient } from '@/app/actions/clients'
 
 type Step = 'profile' | 'connect' | 'modules' | 'launch'
 
@@ -11,9 +11,9 @@ const INDUSTRIES = [
 ]
 
 export default function OnboardingPage() {
-  const router = useRouter()
   const [step, setStep] = useState<Step>('profile')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const [profile, setProfile] = useState({
     name: '', industry: '', employee_count: '', tier: 'starter'
@@ -29,18 +29,20 @@ export default function OnboardingPage() {
 
   async function handleLaunch() {
     setLoading(true)
-    const res = await fetch('/api/clients', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...profile,
-        employee_count: parseInt(profile.employee_count),
+    setError(null)
+    try {
+      await createClient({
+        name: profile.name,
+        industry: profile.industry,
+        employee_count: parseInt(profile.employee_count) || 0,
+        tier: profile.tier,
         modules: Object.entries(modules).filter(([, v]) => v).map(([k]) => k),
         connections,
       })
-    })
-    const client = await res.json()
-    router.push(`/clients/${client.id}`)
+    } catch (e: any) {
+      setError(e.message ?? 'Something went wrong. Please try again.')
+      setLoading(false)
+    }
   }
 
   return (
@@ -255,6 +257,11 @@ export default function OnboardingPage() {
                 </div>
               </div>
 
+              {error && (
+                <div className="text-sm text-red-400 bg-red-950 border border-red-800 rounded-lg px-3 py-2 mb-2">
+                  {error}
+                </div>
+              )}
               <div className="flex gap-3">
                 <button onClick={() => setStep('modules')} className="flex-1 py-2.5 border border-gray-700 text-gray-300 rounded-lg font-medium hover:border-gray-500 transition-colors">Back</button>
                 <button

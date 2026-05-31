@@ -58,21 +58,35 @@ function normalizeProwlerFinding(f, clientId, scanJobId) {
   }
 }
 
+// Maester severity map — Severity field takes precedence over binary Result
+const MAESTER_SEVERITY_MAP = {
+  Critical: 'critical',
+  High:     'high',
+  Medium:   'medium',
+  Low:      'low',
+  Info:     'informational',
+  Information: 'informational',
+}
+
 function normalizeMaesterFinding(f, clientId, scanJobId) {
+  // Use explicit Severity field if present, fall back to Result-based inference
+  const rawSeverity = f.Severity || f.severity || (f.Result === 'Failed' ? 'High' : 'Info')
+  const severity = MAESTER_SEVERITY_MAP[rawSeverity] || 'informational'
+
   return {
-    client_id: clientId,
-    scan_job_id: scanJobId,
-    scanner: 'maester',
-    check_id: f.TestId || f.Id,
-    title: f.TestName || f.Name,
-    severity: f.Result === 'Failed' ? 'high' : 'informational',
-    status: f.Result === 'Failed' ? 'open' : 'resolved',
-    service: 'entra_id',
-    resource_id: f.TestId,
-    description: f.TestDescription || '',
-    remediation: f.Remediation || '',
-    compliance_frameworks: f.Tags || [],
-    detected_at: new Date().toISOString(),
+    client_id:            clientId,
+    scan_job_id:          scanJobId,
+    scanner:              'maester',
+    check_id:             f.TestId || f.Id,
+    title:                f.TestName || f.Name,
+    severity,
+    status:               f.Result === 'Failed' ? 'open' : 'resolved',
+    service:              'entra_id',
+    resource_id:          null,   // Maester checks are tenant-wide, not per-resource
+    description:          f.TestDescription || f.HelpMessage || '',
+    remediation:          f.Remediation || f.HelpUrl || '',
+    compliance_frameworks: Array.isArray(f.Tags) ? f.Tags : [],
+    detected_at:          new Date().toISOString(),
   }
 }
 
