@@ -15,11 +15,11 @@ type ScanJob = {
   run_url?: string
 }
 
-const STATUS_STYLES: Record<string, { dot: string; label: string; text: string }> = {
-  queued:   { dot: 'bg-gray-400 animate-pulse',  label: 'Queued',    text: 'text-gray-400' },
-  running:  { dot: 'bg-blue-400 animate-pulse',  label: 'Scanning…', text: 'text-blue-400' },
-  complete: { dot: 'bg-green-400',               label: 'Complete',  text: 'text-green-400' },
-  failed:   { dot: 'bg-red-400',                 label: 'Failed',    text: 'text-red-400' },
+const JOB_STATUS: Record<string, { color: string; label: string }> = {
+  queued:   { color: 'var(--text-muted)', label: 'Queued' },
+  running:  { color: 'var(--blue)',       label: 'Scanning…' },
+  complete: { color: 'var(--teal)',       label: 'Complete' },
+  failed:   { color: '#ff8080',           label: 'Failed' },
 }
 
 export function ScanTrigger({ clientId, clientSlug }: { clientId: string; clientSlug: string }) {
@@ -78,42 +78,41 @@ export function ScanTrigger({ clientId, clientSlug }: { clientId: string; client
   const repoName = `aspis-client-${clientSlug}`
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-6">
-      <div className="flex items-center justify-between mb-3">
+    <div style={{ background: 'var(--ink-2)', border: '1px solid var(--border-soft)', borderRadius: 'var(--radius-lg)', padding: '18px 20px', marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
         <div>
-          <div className="text-sm font-medium text-white">Run Security Scan</div>
-          <div className="text-xs text-gray-500 mt-0.5 font-mono">github.com/christrudeau2021/{repoName}</div>
+          <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--teal)', marginBottom: 4 }}>Run Security Scan</p>
+          <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--text-muted)' }}>github.com/christrudeau2021/{repoName}</p>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => triggerScan('maester')}
-            disabled={triggering || isActive}
-            className="text-sm px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
-          >
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => triggerScan('maester')} disabled={triggering || isActive} style={{
+            fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: '0.875rem',
+            padding: '10px 20px', borderRadius: 8, cursor: triggering || isActive ? 'not-allowed' : 'pointer',
+            background: 'var(--grad-brand)', color: '#fff', border: 'none',
+            boxShadow: '0 4px 16px rgba(59,158,255,0.25)',
+            opacity: triggering || isActive ? 0.5 : 1, transition: 'opacity 0.2s',
+          }}>
             {triggering ? 'Starting…' : '▶ Scan M365'}
           </button>
-          <button
-            onClick={() => triggerScan('prowler')}
-            disabled={triggering || isActive}
-            className="text-sm px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
-          >
+          <button onClick={() => triggerScan('prowler')} disabled={triggering || isActive} style={{
+            fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: '0.875rem',
+            padding: '10px 20px', borderRadius: 8, cursor: triggering || isActive ? 'not-allowed' : 'pointer',
+            background: 'rgba(59,158,255,0.08)', color: 'var(--blue)',
+            border: '1px solid rgba(59,158,255,0.2)',
+            opacity: triggering || isActive ? 0.5 : 1, transition: 'opacity 0.2s',
+          }}>
             {triggering ? 'Starting…' : '▶ Scan Azure'}
           </button>
         </div>
       </div>
 
-      {/* Error / setup required */}
+      {/* Error */}
       {error && (
-        <div className="mb-3 bg-red-950 border border-red-800 rounded-lg px-3 py-2 text-xs text-red-300">
+        <div style={{ marginBottom: 12, background: 'rgba(255,60,60,0.06)', border: '1px solid rgba(255,80,80,0.2)', borderRadius: 8, padding: '10px 14px', fontSize: '0.8rem', color: '#ff8080' }}>
           {error}
           {setupRequired && (
-            <div className="mt-1 text-red-400">
-              <a
-                href={`https://github.com/new`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline"
-              >
+            <div style={{ marginTop: 6 }}>
+              <a href="https://github.com/new" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--blue)', textDecoration: 'underline', textUnderlineOffset: 3 }}>
                 Create repo on GitHub →
               </a>
               {' '}then copy workflow files from the aspis repo.
@@ -124,34 +123,27 @@ export function ScanTrigger({ clientId, clientSlug }: { clientId: string; client
 
       {/* Scan history */}
       {jobs.length > 0 && (
-        <div className="space-y-1.5">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {jobs.slice(0, 3).map(job => {
-            const s = STATUS_STYLES[job.status] ?? STATUS_STYLES.failed
+            const s = JOB_STATUS[job.status] ?? JOB_STATUS.failed
             const elapsed = job.completed_at
               ? `${Math.round((new Date(job.completed_at).getTime() - new Date(job.started_at).getTime()) / 60000)}m`
               : isActive && job.id === latestJob?.id ? 'running…' : ''
             return (
-              <div key={job.id} className="flex items-center gap-3 text-xs">
-                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${s.dot}`} />
-                <span className={`font-medium w-16 ${s.text}`}>{s.label}</span>
-                <span className="text-gray-500 capitalize">{job.scanner}</span>
-                <span className="text-gray-600">{new Date(job.started_at).toLocaleDateString()}</span>
-                {elapsed && <span className="text-gray-600">{elapsed}</span>}
+              <div key={job.id} style={{ display: 'flex', alignItems: 'center', gap: 14, fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: s.color, flexShrink: 0, boxShadow: job.status === 'running' ? `0 0 8px ${s.color}` : 'none' }} />
+                <span style={{ color: s.color, width: 70 }}>{s.label}</span>
+                <span style={{ color: 'var(--text-muted)', textTransform: 'capitalize' }}>{job.scanner}</span>
+                <span style={{ color: 'var(--text-muted)' }}>{new Date(job.started_at).toLocaleDateString()}</span>
+                {elapsed && <span style={{ color: 'var(--text-muted)' }}>{elapsed}</span>}
                 {job.findings_count != null && job.status === 'complete' && (
-                  <span className="text-gray-500">
+                  <span style={{ color: 'var(--text-muted)' }}>
                     {job.findings_count} findings
-                    {(job.critical_count ?? 0) > 0 && (
-                      <span className="text-red-400 ml-1">· {job.critical_count} critical</span>
-                    )}
+                    {(job.critical_count ?? 0) > 0 && <span style={{ color: '#ff8080', marginLeft: 6 }}>· {job.critical_count} critical</span>}
                   </span>
                 )}
                 {job.run_url && (
-                  <a
-                    href={job.run_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-gray-600 hover:text-gray-400 ml-auto"
-                  >
+                  <a href={job.run_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--blue)', marginLeft: 'auto', textDecoration: 'underline', textUnderlineOffset: 3 }}>
                     View logs →
                   </a>
                 )}
@@ -162,7 +154,9 @@ export function ScanTrigger({ clientId, clientSlug }: { clientId: string; client
       )}
 
       {jobs.length === 0 && (
-        <p className="text-xs text-gray-600">No scans yet. Click Scan M365 to run the first scan.</p>
+        <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+          No scans yet. Click Scan M365 to run the first scan.
+        </p>
       )}
     </div>
   )

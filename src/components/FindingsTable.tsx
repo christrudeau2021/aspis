@@ -3,19 +3,23 @@
 import { useState, useTransition, useOptimistic } from 'react'
 import { updateFindingStatus } from '@/app/actions/findings'
 
-const SEVERITY_COLORS: Record<string, string> = {
-  critical:      'bg-red-900/50 text-red-300 border-red-800',
-  high:          'bg-orange-900/50 text-orange-300 border-orange-800',
-  medium:        'bg-yellow-900/50 text-yellow-300 border-yellow-800',
-  low:           'bg-blue-900/50 text-blue-300 border-blue-800',
-  informational: 'bg-gray-800 text-gray-400 border-gray-700',
+const SEV: Record<string, { bg: string; color: string; border: string }> = {
+  critical:      { bg: 'rgba(255,60,60,0.12)',   color: '#ff8080',            border: 'rgba(255,80,80,0.25)' },
+  high:          { bg: 'rgba(255,140,0,0.10)',    color: '#ffaa55',            border: 'rgba(255,140,0,0.25)' },
+  medium:        { bg: 'rgba(255,200,0,0.08)',    color: '#ffd060',            border: 'rgba(255,200,0,0.2)' },
+  low:           { bg: 'rgba(59,158,255,0.08)',   color: '#3b9eff',            border: 'rgba(59,158,255,0.2)' },
+  informational: { bg: 'rgba(255,255,255,0.03)',  color: '#3d6080',            border: 'rgba(255,255,255,0.06)' },
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  open:          'bg-red-900/30 text-red-400 border-red-800',
-  resolved:      'bg-green-900/30 text-green-400 border-green-800',
-  accepted_risk: 'bg-gray-800 text-gray-400 border-gray-700',
+const STATUS: Record<string, { bg: string; color: string; border: string }> = {
+  open:          { bg: 'rgba(255,60,60,0.08)',  color: '#ff8080', border: 'rgba(255,80,80,0.2)' },
+  resolved:      { bg: 'rgba(0,212,160,0.08)', color: '#00d4a0', border: 'rgba(0,212,160,0.2)' },
+  accepted_risk: { bg: 'rgba(255,255,255,0.03)', color: '#3d6080', border: 'rgba(255,255,255,0.06)' },
 }
+
+// Keep old aliases for compatibility with any remaining references
+const SEVERITY_COLORS: Record<string, string> = {}
+const STATUS_STYLES: Record<string, string> = {}
 
 type Finding = {
   id: string
@@ -32,25 +36,30 @@ type Finding = {
 function AcceptRiskModal({ onConfirm, onCancel }: { onConfirm: (reason: string) => void; onCancel: () => void }) {
   const [reason, setReason] = useState('')
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-md w-full">
-        <h3 className="text-white font-semibold mb-1">Accept Risk</h3>
-        <p className="text-gray-400 text-sm mb-4">Document why this risk is being accepted. This becomes a compliance artifact.</p>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}>
+      <div style={{ background: 'var(--ink-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 28, maxWidth: 480, width: '100%' }}>
+        <h3 style={{ fontFamily: 'var(--font-serif)', fontWeight: 400, fontSize: '1.3rem', color: 'var(--text-primary)', marginBottom: 6 }}>Accept Risk</h3>
+        <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: 16, lineHeight: 1.6 }}>
+          Document why this risk is being accepted. This becomes a compliance artifact.
+        </p>
         <textarea
-          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none"
-          rows={3}
-          placeholder="e.g. Legacy auth required for specific vendor integration until Q3. Mitigated by network-level controls."
+          style={{ width: '100%', background: 'var(--ink-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-primary)', fontSize: '0.875rem', outline: 'none', resize: 'vertical', minHeight: 90, fontFamily: 'var(--font-sans)' }}
+          placeholder="e.g. Legacy auth required for AccountEdge vendor until Q3 migration. Mitigated by IP allowlisting."
           value={reason}
           onChange={e => setReason(e.target.value)}
           autoFocus
         />
-        <div className="flex gap-2 mt-3 justify-end">
-          <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors">Cancel</button>
-          <button
-            onClick={() => reason.trim() && onConfirm(reason)}
-            disabled={!reason.trim()}
-            className="px-4 py-2 text-sm bg-gray-700 hover:bg-gray-600 disabled:opacity-40 text-white rounded-lg transition-colors"
-          >
+        <div style={{ display: 'flex', gap: 8, marginTop: 14, justifyContent: 'flex-end' }}>
+          <button onClick={onCancel} style={{ padding: '8px 16px', fontSize: '0.875rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
+            Cancel
+          </button>
+          <button onClick={() => reason.trim() && onConfirm(reason)} disabled={!reason.trim()} style={{
+            padding: '8px 18px', fontSize: '0.875rem', fontWeight: 600, borderRadius: 8, cursor: 'pointer',
+            background: reason.trim() ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.02)',
+            color: reason.trim() ? 'var(--text-primary)' : 'var(--text-muted)',
+            border: '1px solid var(--border-soft)', fontFamily: 'var(--font-sans)',
+            opacity: reason.trim() ? 1 : 0.5,
+          }}>
             Accept Risk
           </button>
         </div>
@@ -80,88 +89,99 @@ function FindingRow({ finding, clientId }: { finding: Finding; clientId: string 
           onCancel={() => setShowAcceptModal(false)}
         />
       )}
-      <div className={`px-4 py-3 transition-colors ${isPending ? 'opacity-60' : ''} ${isOpen ? 'hover:bg-gray-800/50' : 'opacity-70'}`}>
-        <div className="flex items-start gap-3">
+      <div style={{ padding: '14px 20px', opacity: isPending ? 0.6 : isOpen ? 1 : 0.75, transition: 'opacity 0.2s' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
           {/* Expand toggle */}
-          <button
-            onClick={() => setExpanded(e => !e)}
-            className="mt-1 text-gray-600 hover:text-gray-400 shrink-0 transition-colors text-xs"
-          >
+          <button onClick={() => setExpanded(e => !e)} style={{
+            marginTop: 2, color: 'var(--text-muted)', flexShrink: 0, fontSize: '0.75rem',
+            transition: 'color 0.2s', background: 'none', border: 'none', cursor: 'pointer',
+          }}>
             {expanded ? '▾' : '▸'}
           </button>
 
-          <div className="flex-1 min-w-0">
+          <div style={{ flex: 1, minWidth: 0 }}>
             {/* Top row */}
-            <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-              <span className={`text-xs px-1.5 py-0.5 rounded border shrink-0 ${SEVERITY_COLORS[finding.severity]}`}>
-                {finding.severity}
-              </span>
-              {status !== 'open' && (
-                <span className={`text-xs px-1.5 py-0.5 rounded border shrink-0 ${STATUS_STYLES[status]}`}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+              {(() => { const s = SEV[finding.severity] || SEV.informational; return (
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', letterSpacing: '0.1em',
+                  textTransform: 'uppercase', padding: '2px 8px', borderRadius: 4,
+                  background: s.bg, color: s.color, border: `1px solid ${s.border}`, flexShrink: 0 }}>
+                  {finding.severity}
+                </span>
+              )})()}
+              {status !== 'open' && (() => { const s = STATUS[status] || STATUS.open; return (
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', letterSpacing: '0.08em',
+                  padding: '2px 8px', borderRadius: 4, background: s.bg, color: s.color,
+                  border: `1px solid ${s.border}`, flexShrink: 0 }}>
                   {status === 'accepted_risk' ? 'accepted risk' : status}
                 </span>
-              )}
-              <span className="text-xs text-gray-500 shrink-0">{finding.service}</span>
-              <span className="text-xs text-gray-600 shrink-0 font-mono">{finding.check_id}</span>
+              )})()}
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', flexShrink: 0 }}>{finding.service}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--text-muted)', opacity: 0.7, flexShrink: 0 }}>{finding.check_id}</span>
             </div>
 
             {/* Title */}
-            <div className={`text-sm font-medium ${isOpen ? 'text-white' : 'text-gray-500 line-through'}`}>
+            <div style={{
+              fontSize: '0.9rem', fontWeight: 500,
+              color: isOpen ? 'var(--text-primary)' : 'var(--text-muted)',
+              textDecoration: isOpen ? 'none' : 'line-through',
+            }}>
               {finding.title}
             </div>
 
             {/* Expanded detail */}
             {expanded && (
-              <div className="mt-3 space-y-3 text-sm">
+              <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div>
-                  <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">What this means</div>
-                  <p className="text-gray-300 leading-relaxed">{finding.description}</p>
+                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>What this means</p>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.7, paddingLeft: 14, borderLeft: '2px solid rgba(59,158,255,0.25)' }}>{finding.description}</p>
                 </div>
                 {finding.remediation && (
                   <div>
-                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">How to fix it</div>
-                    <p className="text-gray-300 leading-relaxed">{finding.remediation}</p>
+                    <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--teal)', marginBottom: 6 }}>How to fix it</p>
+                    <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.7, paddingLeft: 14, borderLeft: '2px solid rgba(0,212,160,0.25)' }}>{finding.remediation}</p>
                   </div>
                 )}
                 {finding.compliance_frameworks.length > 0 && (
-                  <div>
-                    <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Compliance</div>
-                    <div className="flex gap-1 flex-wrap">
-                      {finding.compliance_frameworks.map(fw => (
-                        <span key={fw} className="text-xs bg-gray-800 text-gray-400 px-2 py-0.5 rounded">{fw}</span>
-                      ))}
-                    </div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-muted)', marginRight: 4 }}>Compliance</span>
+                    {finding.compliance_frameworks.map(fw => (
+                      <span key={fw} style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', letterSpacing: '0.08em', color: 'var(--blue)', background: 'rgba(59,158,255,0.07)', border: '1px solid rgba(59,158,255,0.15)', padding: '2px 8px', borderRadius: 4 }}>{fw}</span>
+                    ))}
                   </div>
                 )}
               </div>
             )}
           </div>
 
-          {/* Action buttons — only for open findings */}
-          <div className="flex gap-1.5 shrink-0 mt-0.5">
+          {/* Action buttons */}
+          <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginTop: 2 }}>
             {isOpen ? (
               <>
-                <button
-                  onClick={() => handleStatus('resolved')}
-                  disabled={isPending}
-                  className="text-xs px-2.5 py-1 bg-green-900/40 hover:bg-green-800/60 text-green-400 border border-green-800 rounded-lg transition-colors disabled:opacity-40"
-                >
+                <button onClick={() => handleStatus('resolved')} disabled={isPending} style={{
+                  fontFamily: 'var(--font-mono)', fontSize: '0.68rem', letterSpacing: '0.06em',
+                  padding: '5px 12px', borderRadius: 6, cursor: 'pointer', transition: 'background 0.2s',
+                  background: 'rgba(0,212,160,0.1)', color: 'var(--teal)', border: '1px solid rgba(0,212,160,0.25)',
+                  opacity: isPending ? 0.4 : 1,
+                }}>
                   ✓ Resolved
                 </button>
-                <button
-                  onClick={() => setShowAcceptModal(true)}
-                  disabled={isPending}
-                  className="text-xs px-2.5 py-1 bg-gray-800 hover:bg-gray-700 text-gray-400 border border-gray-700 rounded-lg transition-colors disabled:opacity-40"
-                >
+                <button onClick={() => setShowAcceptModal(true)} disabled={isPending} style={{
+                  fontFamily: 'var(--font-mono)', fontSize: '0.68rem', letterSpacing: '0.06em',
+                  padding: '5px 12px', borderRadius: 6, cursor: 'pointer', transition: 'background 0.2s',
+                  background: 'rgba(255,255,255,0.03)', color: 'var(--text-muted)', border: '1px solid var(--border-soft)',
+                  opacity: isPending ? 0.4 : 1,
+                }}>
                   Accept Risk
                 </button>
               </>
             ) : (
-              <button
-                onClick={() => handleStatus('open')}
-                disabled={isPending}
-                className="text-xs px-2.5 py-1 bg-gray-800 hover:bg-gray-700 text-gray-500 border border-gray-700 rounded-lg transition-colors disabled:opacity-40"
-              >
+              <button onClick={() => handleStatus('open')} disabled={isPending} style={{
+                fontFamily: 'var(--font-mono)', fontSize: '0.68rem', letterSpacing: '0.06em',
+                padding: '5px 12px', borderRadius: 6, cursor: 'pointer',
+                background: 'rgba(255,255,255,0.03)', color: 'var(--text-muted)', border: '1px solid var(--border-soft)',
+                opacity: isPending ? 0.4 : 1,
+              }}>
                 Reopen
               </button>
             )}
@@ -184,24 +204,26 @@ export function FindingsTable({ findings, clientId }: { findings: Finding[]; cli
   const acceptedCount = findings.filter(f => f.status === 'accepted_risk').length
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+    <div style={{ background: 'var(--ink-2)', border: '1px solid var(--border-soft)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
       {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <h2 className="text-sm font-medium text-white">Findings</h2>
-          <div className="flex gap-2 text-xs text-gray-500">
-            <span className="text-red-400 font-medium">{openCount} open</span>
-            {resolvedCount > 0 && <span className="text-green-400">{resolvedCount} resolved</span>}
-            {acceptedCount > 0 && <span>{acceptedCount} accepted</span>}
+      <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border-soft)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <h2 style={{ fontFamily: 'var(--font-serif)', fontWeight: 400, fontSize: '1.05rem', color: 'var(--text-primary)' }}>Findings</h2>
+          <div style={{ display: 'flex', gap: 10, fontFamily: 'var(--font-mono)', fontSize: '0.72rem', letterSpacing: '0.05em' }}>
+            <span style={{ color: '#ff8080' }}>{openCount} open</span>
+            {resolvedCount > 0 && <span style={{ color: 'var(--teal)' }}>{resolvedCount} resolved</span>}
+            {acceptedCount > 0 && <span style={{ color: 'var(--text-muted)' }}>{acceptedCount} accepted</span>}
           </div>
         </div>
-        <div className="flex gap-1">
+        <div style={{ display: 'flex', gap: 4 }}>
           {(['open', 'all'] as const).map(f => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`text-xs px-3 py-1 rounded-lg transition-colors ${filter === f ? 'bg-gray-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}
-            >
+            <button key={f} onClick={() => setFilter(f)} style={{
+              fontFamily: 'var(--font-mono)', fontSize: '0.68rem', letterSpacing: '0.08em',
+              padding: '4px 12px', borderRadius: 6, cursor: 'pointer', transition: 'all 0.2s',
+              background: filter === f ? 'rgba(59,158,255,0.1)' : 'transparent',
+              color: filter === f ? 'var(--blue)' : 'var(--text-muted)',
+              border: filter === f ? '1px solid rgba(59,158,255,0.2)' : '1px solid transparent',
+            }}>
               {f === 'open' ? 'Open only' : `All (${findings.length})`}
             </button>
           ))}
@@ -209,13 +231,15 @@ export function FindingsTable({ findings, clientId }: { findings: Finding[]; cli
       </div>
 
       {visible.length === 0 ? (
-        <div className="text-center py-12 text-gray-500 text-sm">
+        <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
           {filter === 'open' ? '✓ No open findings.' : 'No findings yet.'}
         </div>
       ) : (
-        <div className="divide-y divide-gray-800">
-          {visible.map(f => (
-            <FindingRow key={f.id} finding={f} clientId={clientId} />
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {visible.map((f, i) => (
+            <div key={f.id} style={{ borderTop: i > 0 ? '1px solid var(--border-soft)' : 'none' }}>
+              <FindingRow finding={f} clientId={clientId} />
+            </div>
           ))}
         </div>
       )}

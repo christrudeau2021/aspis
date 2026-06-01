@@ -1,26 +1,129 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Brand colours — matches cybershield-llc.com */
+  --blue:           #3b9eff;
+  --blue-dark:      #1a6fd4;
+  --teal:           #00d4a0;
+  --teal-dark:      #00a87e;
+
+  /* Backgrounds */
+  --ink:            #0a0f1a;
+  --ink-2:          #0f1826;
+  --ink-3:          #162030;
+  --surface:        #1a2940;
+
+  /* Borders */
+  --border:         rgba(59,158,255,0.12);
+  --border-soft:    rgba(255,255,255,0.06);
+
+  /* Text */
+  --text-primary:   #e8f2ff;
+  --text-secondary: #7fa0c0;
+  --text-muted:     #3d6080;
+
+  /* Gradients */
+  --grad-brand:     linear-gradient(135deg, #3b9eff, #00d4a0);
+
+  /* Typography */
+  --font-serif:     'DM Serif Display', Georgia, serif;
+  --font-sans:      'DM Sans', system-ui, sans-serif;
+  --font-mono:      'IBM Plex Mono', 'Courier New', monospace;
+
+  /* Radii */
+  --radius:         12px;
+  --radius-lg:      20px;
+
+  --ease:           cubic-bezier(0.2, 0.8, 0.3, 1);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-brand-blue:    #3b9eff;
+  --color-brand-teal:    #00d4a0;
+  --color-ink:           #0a0f1a;
+  --color-ink-2:         #0f1826;
+  --color-ink-3:         #162030;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* ─── BASE ─── */
+html { scroll-behavior: smooth; }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--ink);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  line-height: 1.15;
+}
+
+/* ─── LANDING PAGE BUTTONS ─── */
+.btn-primary-cs {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--grad-brand);
+  color: #fff;
+  padding: 14px 28px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
+  box-shadow: 0 4px 24px rgba(59,158,255,0.3);
+  transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease);
+  text-decoration: none;
+  font-family: var(--font-sans);
+}
+.btn-primary-cs:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 36px rgba(59,158,255,0.45);
+}
+
+.btn-ghost-cs {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(59,158,255,0.08);
+  color: var(--blue);
+  border: 1px solid rgba(59,158,255,0.2);
+  padding: 14px 28px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
+  transition: background 0.2s, transform 0.2s;
+  text-decoration: none;
+  font-family: var(--font-sans);
+}
+.btn-ghost-cs:hover {
+  background: rgba(59,158,255,0.14);
+  transform: translateY(-2px);
+}
+
+/* ─── ANIMATIONS ─── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-8px); }
+}
+
+.animate-fade-up { animation: fadeUp 0.8s var(--ease) both; }
+.animate-float   { animation: float 3s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -7,12 +7,12 @@ import { ScanTrigger } from '@/components/ScanTrigger'
 
 export const dynamic = 'force-dynamic'
 
-const SEVERITY_COLORS: Record<string, string> = {
-  critical:      'bg-red-900/50 text-red-300 border-red-800',
-  high:          'bg-orange-900/50 text-orange-300 border-orange-800',
-  medium:        'bg-yellow-900/50 text-yellow-300 border-yellow-800',
-  low:           'bg-blue-900/50 text-blue-300 border-blue-800',
-  informational: 'bg-gray-800 text-gray-400 border-gray-700',
+const SEV_STYLES: Record<string, { bg: string; color: string; border: string }> = {
+  critical:      { bg: 'rgba(255,60,60,0.08)',   color: '#ff8080',         border: 'rgba(255,80,80,0.2)' },
+  high:          { bg: 'rgba(255,140,0,0.08)',    color: '#ffaa55',         border: 'rgba(255,140,0,0.2)' },
+  medium:        { bg: 'rgba(255,200,0,0.07)',    color: '#ffd060',         border: 'rgba(255,200,0,0.2)' },
+  low:           { bg: 'rgba(59,158,255,0.08)',   color: 'var(--blue)',     border: 'var(--border)' },
+  informational: { bg: 'rgba(255,255,255,0.03)',  color: 'var(--text-muted)', border: 'var(--border-soft)' },
 }
 
 export default async function ClientPage({ params }: { params: Promise<{ id: string }> }) {
@@ -46,68 +46,97 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 p-6">
-      <div className="max-w-5xl mx-auto">
+    <div className="min-h-screen p-6" style={{ background: 'var(--ink)' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto' }}>
 
         {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm text-gray-500 mb-6">
-          <Link href="/dashboard" className="hover:text-gray-300">Dashboard</Link>
-          <span>/</span>
-          <span className="text-gray-300">{client.name}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 24 }}>
+          <Link href="/dashboard" style={{ color: 'var(--blue)' }}>Dashboard</Link>
+          <span style={{ opacity: 0.4 }}>/</span>
+          <span style={{ color: 'var(--text-secondary)' }}>{client.name}</span>
         </div>
 
         {/* Header */}
-        <div className="flex items-start justify-between mb-6">
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
           <div>
-            <h1 className="text-2xl font-bold text-white">{client.name}</h1>
-            <p className="text-gray-500 text-sm mt-0.5">
-              {client.industry} · {client.employee_count} employees · {client.tier}
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--teal)', marginBottom: 6 }}>
+              {client.industry}
+            </p>
+            <h1 style={{ fontFamily: 'var(--font-serif)', fontWeight: 400, fontSize: 'clamp(1.6rem, 2.5vw, 2.2rem)', color: 'var(--text-primary)', lineHeight: 1.15 }}>
+              {client.name}
+            </h1>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: 4 }}>
+              {client.employee_count} employees · {client.tier} tier
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div style={{ display: 'flex', gap: 8 }}>
             {(client.modules as string[]).map((m: string) => (
-              <span key={m} className="text-xs bg-gray-800 border border-gray-700 text-gray-400 px-2 py-1 rounded">
+              <span key={m} style={{
+                fontFamily: 'var(--font-mono)', fontSize: '0.68rem', letterSpacing: '0.1em',
+                color: 'var(--text-muted)', background: 'rgba(255,255,255,0.03)',
+                border: '1px solid var(--border-soft)', padding: '4px 10px', borderRadius: 4,
+              }}>
                 {m}
               </span>
             ))}
           </div>
         </div>
 
-        {/* Posture score + severity summary */}
-        <div className="grid grid-cols-6 gap-3 mb-6">
+        {/* Posture + severity row */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr', gap: 12, marginBottom: 24 }}>
 
-          {/* Grade card */}
-          <div className={`col-span-1 border rounded-xl p-4 flex flex-col items-center justify-center ${posture.bg} ${posture.border}`}>
-            <div className={`text-4xl font-black ${posture.color}`}>{posture.grade}</div>
-            <div className="text-xs text-gray-500 mt-1">Posture</div>
-            <div className={`text-xs font-medium mt-0.5 ${posture.color}`}>{posture.label}</div>
+          {/* Grade */}
+          <div style={{
+            background: posture.bg, border: `1px solid ${posture.border}`,
+            borderRadius: 'var(--radius-lg)', padding: '20px 16px',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <span style={{ fontFamily: 'var(--font-serif)', fontSize: '2.8rem', lineHeight: 1, color: posture.color }}>{posture.grade}</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.62rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-muted)', marginTop: 4 }}>Posture</span>
+            <span style={{ fontSize: '0.72rem', color: posture.color, marginTop: 2 }}>{posture.label}</span>
           </div>
 
-          {/* Severity breakdown */}
-          {(['critical', 'high', 'medium', 'low', 'informational'] as const).map(sev => (
-            <div key={sev} className={`border rounded-xl p-3 ${SEVERITY_COLORS[sev]}`}>
-              <div className="text-2xl font-bold">{bySeverity[sev] ?? 0}</div>
-              <div className="text-xs capitalize">{sev}</div>
-            </div>
-          ))}
+          {/* Severity cards */}
+          {(['critical', 'high', 'medium', 'low', 'informational'] as const).map(sev => {
+            const s = SEV_STYLES[sev]
+            return (
+              <div key={sev} style={{
+                background: s.bg, border: `1px solid ${s.border}`,
+                borderRadius: 'var(--radius-lg)', padding: '16px',
+              }}>
+                <div style={{ fontFamily: 'var(--font-serif)', fontSize: '2rem', color: s.color, lineHeight: 1.1 }}>
+                  {bySeverity[sev] ?? 0}
+                </div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginTop: 4 }}>
+                  {sev}
+                </div>
+              </div>
+            )
+          })}
         </div>
 
         {/* Onboarding banner */}
         {!onboardingComplete && pendingSteps.length > 0 && (
-          <div className="bg-blue-950 border border-blue-800 rounded-xl p-4 mb-6">
-            <div className="text-sm font-medium text-blue-300 mb-3">Complete setup to activate scanning</div>
-            <div className="space-y-2">
+          <div style={{
+            background: 'rgba(59,158,255,0.05)', border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-lg)', padding: '20px 24px', marginBottom: 20,
+          }}>
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--blue)', marginBottom: 14 }}>
+              Complete setup to activate scanning
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {pendingSteps.map((s: any) => (
-                <div key={s.step_key} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm text-blue-400">
-                    <span className="w-4 h-4 border border-blue-600 rounded shrink-0" />
+                <div key={s.step_key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                    <span style={{ width: 16, height: 16, border: '1px solid var(--border)', borderRadius: 4, flexShrink: 0 }} />
                     {s.title}
                   </div>
                   {setupLinks[s.step_key] && (
-                    <Link
-                      href={setupLinks[s.step_key]}
-                      className="text-xs px-3 py-1 bg-blue-700 hover:bg-blue-600 text-white rounded-lg transition-colors"
-                    >
+                    <Link href={setupLinks[s.step_key]} style={{
+                      fontFamily: 'var(--font-mono)', fontSize: '0.72rem', letterSpacing: '0.08em',
+                      background: 'var(--grad-brand)', color: '#fff',
+                      padding: '5px 14px', borderRadius: 6, textDecoration: 'none',
+                    }}>
                       Configure →
                     </Link>
                   )}
@@ -120,12 +149,14 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
         {/* Scan trigger */}
         <ScanTrigger clientId={id} clientSlug={client.slug} />
 
-        {/* Findings table with remediation */}
+        {/* Findings */}
         {findings.length === 0 ? (
-          <div className="bg-gray-900 border border-gray-800 rounded-xl text-center py-12 text-gray-500 text-sm">
-            {onboardingComplete
-              ? 'No findings yet. Run a scan above to populate results.'
-              : 'Complete setup above, then run a scan.'}
+          <div style={{
+            background: 'var(--ink-2)', border: '1px solid var(--border-soft)',
+            borderRadius: 'var(--radius-lg)', textAlign: 'center', padding: '48px 0',
+            color: 'var(--text-muted)', fontSize: '0.875rem',
+          }}>
+            {onboardingComplete ? 'No findings yet. Run a scan above to populate results.' : 'Complete setup above, then run a scan.'}
           </div>
         ) : (
           <FindingsTable findings={findings} clientId={id} />

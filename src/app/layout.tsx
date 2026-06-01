@@ -1,8 +1,25 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import { DM_Sans, DM_Serif_Display, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
+const dmSans = DM_Sans({
+  variable: "--font-sans",
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+});
+
+const dmSerif = DM_Serif_Display({
+  variable: "--font-serif",
+  subsets: ["latin"],
+  weight: ["400"],
+  style: ["normal", "italic"],
+});
+
+const ibmMono = IBM_Plex_Mono({
+  variable: "--font-mono",
+  subsets: ["latin"],
+  weight: ["400", "500"],
+});
 
 export const metadata: Metadata = {
   title: "Aspis by CyberShield | Security Posture Management",
@@ -11,8 +28,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${geistSans.variable} h-full antialiased dark`}>
-      <body className="min-h-full flex flex-col bg-gray-950 text-gray-100">{children}</body>
+    <html lang="en" className={`${dmSans.variable} ${dmSerif.variable} ${ibmMono.variable} h-full antialiased`}>
+      <body className="min-h-full flex flex-col" style={{ background: 'var(--ink)', color: 'var(--text-primary)', fontFamily: 'var(--font-sans)' }}>
+        {children}
+      </body>
     </html>
   );
 }

@@ -4,10 +4,10 @@ import { approximatePosture } from '@/lib/posture'
 
 export const dynamic = 'force-dynamic'
 
-const TIER_COLORS: Record<string, string> = {
-  starter: 'bg-gray-800 text-gray-400',
-  business: 'bg-blue-900 text-blue-300',
-  managed: 'bg-purple-900 text-purple-300',
+const TIER_STYLES: Record<string, { bg: string; color: string }> = {
+  starter:  { bg: 'rgba(255,255,255,0.04)', color: 'var(--text-muted)' },
+  business: { bg: 'rgba(59,158,255,0.1)',   color: 'var(--blue)' },
+  managed:  { bg: 'rgba(0,212,160,0.1)',    color: 'var(--teal)' },
 }
 
 async function getData() {
@@ -15,7 +15,7 @@ async function getData() {
   const [{ data: clients }, { count: openFindings }, { count: critical }] = await Promise.all([
     supabase
       .from('clients')
-      .select(`id, name, industry, tier, onboarding_complete, modules,
+      .select(`id, name, slug, industry, tier, onboarding_complete, modules,
         scan_jobs(id, status, completed_at, critical_count, high_count, created_at)`)
       .order('created_at', { ascending: false }),
     supabase.from('findings').select('*', { count: 'exact', head: true }).eq('status', 'open'),
@@ -28,19 +28,27 @@ export default async function DashboardPage() {
   const { clients, openFindings, critical } = await getData()
 
   return (
-    <div className="min-h-screen bg-gray-950 p-6">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen p-6" style={{ background: 'var(--ink)' }}>
+      <div style={{ maxWidth: 1160, margin: '0 auto' }}>
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-10">
           <div>
-            <h1 className="text-2xl font-bold text-white">Aspis</h1>
-            <p className="text-gray-500 text-sm">Security posture dashboard</p>
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--teal)', marginBottom: 6 }}>
+              CyberShield Technologies
+            </p>
+            <h1 style={{ fontFamily: 'var(--font-serif)', fontWeight: 400, fontSize: '2rem', color: 'var(--text-primary)', lineHeight: 1.15 }}>
+              Aspis
+            </h1>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: 2 }}>Security posture dashboard</p>
           </div>
-          <Link
-            href="/onboarding"
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-lg font-medium transition-colors"
-          >
+          <Link href="/onboarding" style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            background: 'var(--grad-brand)', color: '#fff',
+            padding: '11px 22px', borderRadius: 8, fontWeight: 600,
+            fontSize: '0.875rem', fontFamily: 'var(--font-sans)',
+            boxShadow: '0 4px 20px rgba(59,158,255,0.25)',
+          }}>
             + Add client
           </Link>
         </div>
@@ -52,68 +60,103 @@ export default async function DashboardPage() {
             { label: 'Open findings',   value: openFindings,    alert: false },
             { label: 'Critical',        value: critical,        alert: critical > 0 },
           ].map(s => (
-            <div key={s.label} className={`border rounded-xl p-4 ${s.alert ? 'border-red-800 bg-red-950/20' : 'border-gray-800 bg-gray-900'}`}>
-              <div className={`text-3xl font-bold ${s.alert ? 'text-red-400' : 'text-white'}`}>{s.value}</div>
-              <div className="text-sm text-gray-500 mt-0.5">{s.label}</div>
+            <div key={s.label} style={{
+              background: s.alert ? 'rgba(255,60,60,0.06)' : 'var(--ink-2)',
+              border: `1px solid ${s.alert ? 'rgba(255,80,80,0.25)' : 'var(--border-soft)'}`,
+              borderRadius: 'var(--radius-lg)',
+              padding: '20px 24px',
+            }}>
+              <div style={{ fontFamily: 'var(--font-serif)', fontSize: '2.5rem', color: s.alert ? '#ff6b6b' : 'var(--text-primary)', lineHeight: 1.1 }}>
+                {s.value}
+              </div>
+              <div style={{ fontSize: '0.825rem', color: 'var(--text-muted)', marginTop: 4 }}>{s.label}</div>
             </div>
           ))}
         </div>
 
         {/* Client list */}
         {clients.length === 0 ? (
-          <div className="text-center py-20 border border-dashed border-gray-800 rounded-xl">
-            <p className="text-gray-500 mb-4">No clients yet.</p>
-            <Link href="/onboarding" className="text-blue-400 hover:text-blue-300 text-sm">Add your first client →</Link>
+          <div style={{
+            textAlign: 'center', padding: '80px 0',
+            border: '1px dashed var(--border)', borderRadius: 'var(--radius-lg)',
+          }}>
+            <p style={{ color: 'var(--text-muted)', marginBottom: 16 }}>No clients yet.</p>
+            <Link href="/onboarding" style={{ color: 'var(--blue)', fontSize: '0.875rem', textDecoration: 'underline', textUnderlineOffset: 3 }}>
+              Add your first client →
+            </Link>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {clients.map((client: any) => {
               const latestScan = client.scan_jobs
                 ?.slice()
                 .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
 
-              const posture = approximatePosture(
-                latestScan?.critical_count ?? 0,
-                latestScan?.high_count ?? 0,
-              )
+              const posture = approximatePosture(latestScan?.critical_count ?? 0, latestScan?.high_count ?? 0)
               const hasActiveScan = latestScan?.status === 'running' || latestScan?.status === 'queued'
+              const tier = TIER_STYLES[client.tier] ?? TIER_STYLES.starter
 
               return (
-                <Link
-                  key={client.id}
-                  href={`/clients/${client.id}`}
-                  className="flex items-center gap-4 bg-gray-900 border border-gray-800 hover:border-gray-700 rounded-xl p-4 transition-colors"
-                >
-                  {/* Posture grade */}
-                  <div className={`w-12 h-12 rounded-lg border flex flex-col items-center justify-center shrink-0 ${posture.bg} ${posture.border}`}>
-                    <span className={`text-lg font-black leading-none ${posture.color}`}>{posture.grade}</span>
+                <Link key={client.id} href={`/clients/${client.id}`} style={{
+                  display: 'flex', alignItems: 'center', gap: 16,
+                  background: 'var(--ink-2)', border: '1px solid var(--border-soft)',
+                  borderRadius: 'var(--radius-lg)', padding: '16px 20px',
+                  transition: 'border-color 0.3s, transform 0.2s',
+                  textDecoration: 'none',
+                }}>
+                  {/* Grade */}
+                  <div style={{
+                    width: 52, height: 52, borderRadius: 12, flexShrink: 0,
+                    background: posture.bg, border: `1px solid ${posture.border.replace('border-', '')}`,
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <span style={{ fontFamily: 'var(--font-serif)', fontSize: '1.5rem', lineHeight: 1, color: posture.color.replace('text-', '') }}>
+                      {posture.grade}
+                    </span>
                   </div>
 
-                  {/* Client info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="text-white font-medium">{client.name}</div>
-                    <div className="text-sm text-gray-500">{client.industry}</div>
+                  {/* Info */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.95rem' }}>{client.name}</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.825rem', marginTop: 2 }}>{client.industry}</div>
                   </div>
 
-                  {/* Right side indicators */}
-                  <div className="flex items-center gap-3 shrink-0">
-                    {latestScan?.critical_count > 0 && (
-                      <span className="text-xs bg-red-900 text-red-300 px-2 py-1 rounded font-medium">
+                  {/* Right badges */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                    {(latestScan?.critical_count ?? 0) > 0 && (
+                      <span style={{
+                        fontFamily: 'var(--font-mono)', fontSize: '0.72rem', letterSpacing: '0.05em',
+                        background: 'rgba(255,60,60,0.12)', color: '#ff8080',
+                        border: '1px solid rgba(255,80,80,0.2)', padding: '4px 10px', borderRadius: 100,
+                      }}>
                         {latestScan.critical_count} critical
                       </span>
                     )}
                     {hasActiveScan && (
-                      <span className="text-xs text-blue-400 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse" />
+                      <span style={{
+                        fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--teal)',
+                        display: 'flex', alignItems: 'center', gap: 6,
+                      }}>
+                        <span className="animate-pulse" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--teal)', display: 'inline-block' }} />
                         Scanning
                       </span>
                     )}
-                    <span className={`text-xs px-2 py-1 rounded ${TIER_COLORS[client.tier]}`}>
+                    <span style={{
+                      fontFamily: 'var(--font-mono)', fontSize: '0.68rem', letterSpacing: '0.1em',
+                      background: tier.bg, color: tier.color,
+                      border: `1px solid ${tier.color}30`, padding: '4px 10px', borderRadius: 100,
+                    }}>
                       {client.tier}
                     </span>
-                    <div className="flex gap-1">
+                    <div style={{ display: 'flex', gap: 6 }}>
                       {(client.modules as string[]).map((m: string) => (
-                        <span key={m} className="text-xs bg-gray-800 text-gray-500 px-1.5 py-0.5 rounded">{m}</span>
+                        <span key={m} style={{
+                          fontFamily: 'var(--font-mono)', fontSize: '0.65rem', letterSpacing: '0.08em',
+                          color: 'var(--text-muted)', background: 'rgba(255,255,255,0.03)',
+                          border: '1px solid var(--border-soft)', padding: '3px 8px', borderRadius: 4,
+                        }}>
+                          {m}
+                        </span>
                       ))}
                     </div>
                   </div>
