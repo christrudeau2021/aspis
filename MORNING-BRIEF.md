@@ -1,272 +1,311 @@
-# Aspis — Morning Brief
-**Date:** June 1, 2026
-**Status:** MVP complete, deployed, demo-ready
-**Demo URL:** https://aspis.cybershield-llc.com
-**GitHub:** https://github.com/christrudeau2021/aspis
+# Aspis — Start of Day Brief
+**CyberShield Technologies, LLC**
+**Updated:** June 1, 2026
+**Status:** MVP deployed, demo-ready, first real scan pending
 
 ---
 
-## What You Have Right Now
+## Where Things Stand
 
-A fully deployed CSPM/DSPM platform with:
-- Password-protected dashboard (Basic Auth)
-- 3 seeded demo clients with realistic findings
-- Posture scoring (A–F grade) per client
-- Remediation workflow (Resolved / Accept Risk with documented reason)
-- Integration setup guides for M365, Azure, Salesforce
-- Scan trigger button (dispatches GitHub Actions via GitHub API)
-- Scan job history with status polling
+### Live Right Now
+- **https://aspis.cybershield-llc.com** — deployed on Vercel, password protected
+- **3 demo clients** seeded in Supabase with realistic findings (law firm, healthcare, financial)
+- **Posture scoring** (A–F grade) computed per client from open findings
+- **Remediation workflow** — mark findings Resolved or Accept Risk with documented reason
+- **Integration setup guides** for M365, Azure, Salesforce (with copy buttons, step-by-step)
+- **Scan trigger button** — dispatches GitHub Actions via GitHub API, polls for status
+- **Basic Auth** protecting all operator routes
 
-**The demo is live.** Seed data is in Supabase. You can show it to a client right now.
+### What Is NOT Working Yet
+- **Real scans** — you have seeded demo data. Real scans require Step 1–5 below.
+- **Email alerts** — Resend not yet wired
+- **Client portal** — clients can't log in themselves yet
+- **Webhooks** — status is polled, not pushed (next sprint)
 
 ---
 
-## Before You Demo Today — 5 Things (30 minutes)
+## First Thing This Morning — 5 Steps to Real Scans (30 min)
 
-### 1. Add Environment Variables to Vercel (5 min)
-Vercel → aspis → Settings → Environment Variables → Add:
+### Step 1 — Add Environment Variables to Vercel (5 min)
+**Vercel → aspis project → Settings → Environment Variables**
 
-| Variable | Value | Notes |
+| Variable | What | Where to get it |
 |---|---|---|
-| `DASHBOARD_PASSWORD` | Pick something strong | You type this to log in |
-| `GITHUB_TOKEN` | PAT from github.com/settings/tokens | Needs `repo` scope |
-| `GITHUB_OWNER` | `christrudeau2021` | Your GitHub username |
-| `NEXT_PUBLIC_ASPIS_API_KEY` | Same value as `ASPIS_API_KEY` | Already set — confirm it's there |
+| `DASHBOARD_PASSWORD` | Your login password | Make it strong — you type it once per browser session |
+| `GITHUB_TOKEN` | PAT to dispatch scans | github.com/settings/tokens → Generate new (classic) → check **repo** scope |
+| `GITHUB_OWNER` | Your GitHub username | `christrudeau2021` |
+| `NEXT_PUBLIC_ASPIS_API_KEY` | Browser-side API key | Same value as `ASPIS_API_KEY` — confirm it's there |
 
-After adding, **redeploy**: Vercel → Deployments → 3-dot → Redeploy latest.
+After adding: **Vercel → Deployments → latest → 3-dot menu → Redeploy**
 
-### 2. Register M365 Read-Only App (15 min)
-Follow the guide built into the app:
-`aspis.cybershield-llc.com/clients/[any-id]/setup/m365`
+---
 
-You need from Azure Portal:
-- Directory (tenant) ID
-- Application (client) ID
-- Client Secret Value (copy immediately — shown once)
+### Step 2 — Register M365 Read-Only App in Azure (15 min)
+The full guide is built into the app at:
+`aspis.cybershield-llc.com/clients/[any-client-id]/setup/m365`
 
-### 3. Create Client Scan Repo on GitHub (5 min)
-Create **private** repo named: `aspis-client-[slug]`
-(slug = client's slug from Supabase `clients` table, e.g. `harrington-associates-llp`)
+Short version — in Azure Portal:
+1. **Entra ID → App registrations → New registration**
+   - Name: `Aspis Security Scanner (Read Only)`
+   - Single tenant, no redirect URI
+2. **API permissions → Microsoft Graph → Application permissions** — add all 13:
+   `AuditLog.Read.All, Directory.Read.All, Group.Read.All, IdentityRiskyUser.Read.All,
+   Organization.Read.All, Policy.Read.All, Reports.Read.All, RoleManagement.Read.All,
+   SecurityEvents.Read.All, User.Read.All, Application.Read.All,
+   DeviceManagementConfiguration.Read.All, DeviceManagementManagedDevices.Read.All`
+3. **Grant admin consent** (the button at the top of permissions page — critical, easy to miss)
+4. **Certificates & secrets → New client secret** — copy the Value immediately
+5. Note the **Tenant ID** and **Application (client) ID** from the Overview page
 
-Copy 3 files into it:
+---
+
+### Step 3 — Create the Client Scan Repo on GitHub (5 min)
+Go to github.com → New repository:
+- **Name:** `aspis-client-[slug]` (get slug from Supabase `clients` table)
+  - Law firm example: `aspis-client-harrington-associates-llp`
+- **Private** ✅
+- **No README** (stays empty for now)
+
+Then copy the 3 workflow files:
 ```bash
-mkdir -p .github/workflows .github/scripts
-cp ~/Projects/aspis/.github/workflows/scan-m365.yml    .github/workflows/
-cp ~/Projects/aspis/.github/workflows/scan-cloud.yml   .github/workflows/
-cp ~/Projects/aspis/.github/scripts/upload-findings.js .github/scripts/
+cd ~/Projects/aspis
+mkdir -p /tmp/scan-repo/.github/workflows /tmp/scan-repo/.github/scripts
+cp .github/workflows/scan-m365.yml    /tmp/scan-repo/.github/workflows/
+cp .github/workflows/scan-cloud.yml   /tmp/scan-repo/.github/workflows/
+cp .github/scripts/upload-findings.js /tmp/scan-repo/.github/scripts/
+cd /tmp/scan-repo && git init && git add . && git commit -m "init" && git remote add origin https://github.com/christrudeau2021/aspis-client-[slug].git && git push -u origin main
 ```
-Push to main.
 
-### 4. Add 6 Secrets + 1 Variable to Scan Repo (5 min)
-GitHub → scan repo → Settings → Secrets → Actions:
+---
 
-| Secret | Value |
+### Step 4 — Add Secrets to the Scan Repo (5 min)
+**GitHub → scan repo → Settings → Secrets and variables → Actions → New repository secret**
+
+| Secret Name | Value |
 |---|---|
-| `M365_TENANT_ID` | From Step 2 |
-| `M365_CLIENT_ID` | From Step 2 |
-| `M365_CLIENT_SECRET` | From Step 2 |
-| `SUPABASE_URL` | https://ybxnepkseulsvxusazvj.supabase.co |
-| `SUPABASE_SERVICE_KEY` | Your Supabase service role key (Settings → API) |
-| `ASPIS_CLIENT_ID` | UUID from Supabase `clients` table for that client row |
+| `M365_TENANT_ID` | Directory (tenant) ID from Step 2 |
+| `M365_CLIENT_ID` | Application (client) ID from Step 2 |
+| `M365_CLIENT_SECRET` | Secret Value from Step 2 |
+| `SUPABASE_URL` | `https://ybxnepkseulsvxusazvj.supabase.co` |
+| `SUPABASE_SERVICE_KEY` | From Supabase → Settings → API → service_role key |
+| `ASPIS_CLIENT_ID` | UUID of this client from Supabase `clients` table |
 
-Settings → Variables → Actions → New:
+**Settings → Variables → Actions → New repository variable:**
 
 | Variable | Value |
 |---|---|
 | `ASPIS_CLIENT_ID` | Same UUID as above |
 
-### 5. Trigger First Real Scan (1 click)
-Go to `aspis.cybershield-llc.com/clients/[id]` → click **▶ Scan M365**
+---
 
-Results appear in 3–8 minutes. The scan job status updates live.
+### Step 5 — Trigger First Scan (1 click)
+`aspis.cybershield-llc.com/clients/[id]` → click **▶ Scan M365**
+
+Results appear in 3–8 minutes. Status updates live. If you get a 404 error — the repo name doesn't match. Double-check the slug.
 
 ---
 
-## Demo Script (10 minutes)
+## Demo Script (10 min)
 
-**Open:** `aspis.cybershield-llc.com` → type password
-
-**Screen 1 — Dashboard**
-> "This is my operator view. Every client I manage. The letter grade tells me the story — two F's means I have calls to make today."
-
-**Screen 2 — Harrington & Associates LLP (Law Firm)**
-> "18 employees, legal firm. Grade F — Critical Risk. Let me show you what we found."
-
-**Click ▸ on first finding (Legacy Authentication)**
-> "This is the exact attack vector the FBI warned about last week. Your legacy protocols bypass MFA entirely. Here's exactly how to fix it. CIS, CISA-SCuBA, MS-ISAC all require this."
-
-**Click Accept Risk on another finding**
-> "If they can't fix something immediately — vendor dependency, whatever — they document the reason here. That becomes a compliance artifact for their insurer."
-
-**Navigate to Lakeside Medical Group**
-> "Different client, different risk profile. Healthcare. Same platform surfaces HIPAA context automatically — PHI in unstructured email, MFA not enforced for clinical staff."
-
-**Navigate to Meridian Capital Advisors**
-> "Financial advisor, 11 people. Grade D — better, but Azure has a publicly accessible storage account. That's their backup bucket, readable by anyone with the URL."
-
-**Click ▶ Scan M365 (if real scan is set up)**
-> "This is live. I just dispatched a scan of your tenant. Results in 8 minutes."
+**Login:** `aspis.cybershield-llc.com` → enter password
 
 ---
 
-## Key Numbers for the Conversation
+**DASHBOARD**
+> *"This is my operator view. Every client, one screen. The letter grade is the story — two F's means I have calls to make today. 7 critical findings across 3 clients."*
 
-| Stat | Value |
+---
+
+**HARRINGTON & ASSOCIATES LLP** (law firm, Grade F)
+> *"18-person law firm. Grade F — Critical Risk. Let me show you exactly what that means."*
+
+Click `▸` on **Legacy authentication protocols not blocked**:
+> *"This is the attack vector the FBI warned about last week. These legacy protocols bypass MFA entirely — no password needed. The FBI's Kali365 advisory is specifically about this gap. Here's the exact fix, and three compliance frameworks that require it."*
+
+Click **Accept Risk** on another finding:
+> *"If they can't fix something immediately — say, a vendor dependency — they document the reason here. That text becomes a compliance artifact. Their cyber insurer can pull this report and see exactly what was accepted, why, and when."*
+
+---
+
+**LAKESIDE MEDICAL GROUP** (healthcare, Grade F)
+> *"42-person medical practice. Completely different risk profile. Same platform, different compliance lens — watch how HIPAA surfaces automatically."*
+
+Point to **PHI accessible in unstructured email content** and **MFA not required for clinical staff**:
+> *"Saint Anthony Hospital paid to notify 146,000 patients because two email accounts were compromised. Same pattern. We caught it here before it became a breach notification."*
+
+---
+
+**MERIDIAN CAPITAL ADVISORS** (financial services, Grade D)
+> *"11-person RIA. Grade D — better, but look at the first finding: a storage account named 'stmeridianbackups' has public blob access enabled. That's their client backup data, readable by anyone with the URL. ShinyHunters used this exact pattern to pull 47,000 customer records from Ameriprise this year."*
+
+---
+
+**SCAN TRIGGER** (if real scan set up)
+> *"This is live. I'm dispatching a scan of your tenant right now. Results in 8 minutes. You'll see real findings from your actual environment — not a demo."*
+
+---
+
+## Key Numbers to Know
+
+| | |
 |---|---|
-| Security checks run | 1,700+ (Prowler) + 200+ (Maester) |
-| Compliance frameworks | 70+ including CIS, HIPAA, SOC2, PCI-DSS, CISA-SCuBA |
+| Security checks | 1,700+ (Prowler) + 200+ (Maester) |
+| Compliance frameworks | 70+ — CIS, HIPAA, SOC2, PCI-DSS, CISA-SCuBA, GLBA |
 | Time to first scan | Under 10 minutes |
-| Agent install required | None — read-only OAuth only |
-| Cost to client | $299–$2,000/month depending on tier |
+| Agent install | None — read-only OAuth only |
+| No enterprise contract | Month-to-month |
 
----
+## Pricing (Updated — don't go lower)
 
-## Pricing
-
-| Tier | Price | What's Included |
+| Tier | Price | Included |
 |---|---|---|
-| Starter | $499/mo | M365 + 1 cloud, monthly report |
-| Business | $1,200/mo | Full SaaS stack, weekly scans, alerts |
-| Managed | $2,500/mo | Continuous monitoring + remediation guidance |
-
-**Note:** Original pricing was $299/$799/$2,000 — recommend moving it up. Law firms and healthcare practices with compliance obligations will not blink at $499.
+| Starter | **$499/mo** | M365 + 1 cloud, monthly posture report |
+| Business | **$1,200/mo** | Full stack, weekly scans, critical alerts |
+| Managed | **$2,500/mo** | Continuous monitoring + remediation guidance |
 
 ---
 
-## Architecture (for technical questions)
+## Infrastructure Quick Reference
 
-```
-GitHub Actions (per client, private repo)
-    ↓  scan results via upload-findings.js
-Supabase PostgreSQL
-    ↑  server-side queries
-Vercel (aspis.cybershield-llc.com)
-    ↑  browser
-```
-
-- **No persistent server** — scans run as GitHub Actions workflows on a schedule
-- **No agent install** — read-only OAuth app credentials only
-- **Scanners:** Prowler (Apache 2.0), Maester (MIT), both open source
-- **Per-client isolation** — each client has their own private GitHub repo with their own credentials
-
----
-
-## Infrastructure Reference
-
-| Service | Detail |
+| | |
 |---|---|
-| Vercel project | aspis (prj_FLLqn2Yf8IfVlJkmKtHndh6yldns) |
-| Supabase project | aspis — ybxnepkseulsvxusazvj.supabase.co |
-| GitHub repo | github.com/christrudeau2021/aspis (public) |
-| Custom domain | aspis.cybershield-llc.com |
-| DNS | Cloudflare (CNAME → cname.vercel-dns.com) |
+| **Demo URL** | https://aspis.cybershield-llc.com |
+| **Vercel project** | prj_FLLqn2Yf8IfVlJkmKtHndh6yldns |
+| **Supabase URL** | https://ybxnepkseulsvxusazvj.supabase.co |
+| **GitHub repo** | github.com/christrudeau2021/aspis |
+| **Local project** | ~/Projects/aspis |
+| **DNS** | Cloudflare → CNAME → cname.vercel-dns.com |
 
----
-
-## Application Routes
-
-| Route | What It Does |
-|---|---|
-| `/` | Landing page |
-| `/dashboard` | Multi-client overview — your operator view |
-| `/onboarding` | 4-step wizard to add a new client |
-| `/clients/[id]` | Per-client posture score, findings, scan trigger |
-| `/clients/[id]/setup/m365` | Step-by-step M365 OAuth app registration guide |
-| `/clients/[id]/setup/azure` | Azure service principal setup guide |
-| `/clients/[id]/setup/salesforce` | Salesforce Connected App setup guide |
-| `/api/clients` | REST: list / create clients |
-| `/api/clients/[id]/scan` | REST: trigger scan / get scan history |
-| `/api/clients/[id]/setup` | REST: mark onboarding steps complete |
-
----
-
-## Seed / Reset Demo Data
-
-```bash
-# Full clean reset (wipe + rebuild all 3 demo clients)
-cd ~/Projects/aspis
-node scripts/seed-demo.js --wipe
-
-# Safe run (skips if clients already exist)
-node scripts/seed-demo.js
-```
-
-Demo clients:
-- **Harrington & Associates LLP** — Legal, 18 employees, Starter, 9 findings (3 critical)
-- **Lakeside Medical Group** — Healthcare, 42 employees, Business, 8 findings (3 critical)
-- **Meridian Capital Advisors** — Financial Services, 11 employees, Managed, 8 findings (2 critical)
-
----
-
-## What Is NOT Built Yet (Prioritised)
-
-### Must Have Before First Paying Client
-- [ ] **User authentication** — right now the dashboard has a single shared password. Before a second operator touches this, add Supabase Auth with per-user logins
-- [ ] **RLS policies** — Supabase Row Level Security is ON but has no user-scoped policies. Safe for single-operator use, fix before multi-user
-- [ ] **Key rotation** — SUPABASE_SERVICE_ROLE_KEY and ASPIS_API_KEY were exposed in a Claude chat session. Rotate both before any real client data goes in
-
-### High Value — Next Sprint
-- [ ] **Weekly email digest** — Resend integration, Monday morning summary per client (Aegis has the Resend pattern)
-- [ ] **Posture trend chart** — is the grade improving over time? One chart on the client page
-- [ ] **PDF report** — one-click board-ready PDF with posture score, findings, remediation summary
-- [ ] **CISA KEV feed** — weekly GitHub Actions job that pulls live threat intel and flags if any open finding matches an active exploit
-
-### Medium Term
-- [ ] **Client portal** — separate login where the client sees only their own data
-- [ ] **Peer benchmarking** — "Your law firm scores in the 34th percentile vs other legal firms"
-- [ ] **Axiom threat hunting integration** — connect behavioral log data to Aspis posture findings
-- [ ] **Aegis (awareness training) module** — wire the Aspis module slot to the live Aegis platform
-
----
-
-## Product Portfolio (for context)
-
-| Product | Purpose | Status |
-|---|---|---|
-| **Aegis** | Security awareness training + phishing simulation | Live at aegis.cybershield-llc.com |
-| **Aspis** | CSPM/DSPM security posture management | Live at aspis.cybershield-llc.com (this) |
-| **TTX** | Tabletop exercise platform | Local only — ~/Projects/ttx-advisor |
-| **Axiom** | Threat hunting | Not yet built |
-
-Company: **CyberShield Technologies, LLC**
-Servicemark for "Aspis" is pending.
-
----
-
-## Security Issues to Fix Before a Second Operator
-
-These do NOT affect tomorrow's demo. They matter before you add a second person to the platform.
-
-| Issue | Risk | Fix |
-|---|---|---|
-| Single shared password (Basic Auth) | Anyone with the password sees all clients | Add Supabase Auth |
-| No RLS user policies | Service role key is the only thing enforcing isolation | Write per-user Supabase policies |
-| Exposed keys in chat history | Session logs may contain old SUPABASE_SERVICE_ROLE_KEY | Rotate both keys in Supabase + Vercel |
-| CORS scoped to domain | Low risk now, verify after any domain change | Already fixed to aspis.cybershield-llc.com |
-
----
-
-## Local Dev
-
+## Reset Demo Data Any Time
 ```bash
 cd ~/Projects/aspis
-npm run dev
-# → http://localhost:3000
-# Auth is active — browser will prompt for password
-# Use the DASHBOARD_PASSWORD from .env.local
+node scripts/seed-demo.js --wipe   # full clean rebuild
+node scripts/seed-demo.js           # skips if clients exist
 ```
-
-Scanner repos cloned locally for reference:
-- `~/Projects/prowler` — Apache 2.0
-- `~/Projects/maester` — MIT
-- `~/Projects/monkey365` — Apache 2.0
 
 ---
 
-## One Thing That Matters More Than All Of This
+## Next Sprint — Webhooks
 
-The platform is built. The demo is ready. The gap between now and a paying client is one conversation — not more features.
+This is the conversation from last night. Webhooks close the last mile of the workflow and make the platform feel real-time.
 
-Find a law firm, an accounting practice, or a small healthcare office that uses M365. Ask if you can run a free scan. Show them the results. The findings will do the selling.
+### The Three Problems Webhooks Solve
 
-Good luck tomorrow.
+**1. Scan status is polled, not pushed**
+Right now the dashboard asks GitHub "are you done yet?" every 15 seconds. GitHub already knows the instant a scan completes — it just has nowhere to send that signal. Fix: GitHub → Aspis inbound webhook on `workflow_run` completion.
+
+**2. Findings appear all at once, not live**
+All 200 checks complete, then everything lands at once. Fix: Supabase Realtime subscription — findings appear one by one as they're inserted, posture grade recalculates live. This is the moment that closes deals.
+
+**3. No outbound alerts**
+A critical finding is detected at 2am. Nobody knows until someone logs in. Fix: Aspis → Slack/Teams/PagerDuty when critical findings land.
+
+### Build Order
+
+| Priority | Webhook | What It Does | Effort |
+|---|---|---|---|
+| 1 | **GitHub → Aspis** | Instant scan complete, no polling | 2 hrs |
+| 2 | **Supabase Realtime** | Findings stream live during scan | 3 hrs |
+| 3 | **Aspis → Slack/Teams** | Critical finding alerts | 2 hrs |
+| 4 | **Aspis → Resend** | Scan complete + weekly digest email | 1 hr |
+| 5 | **Aspis → client URL** | Configurable per client, enterprise feature | 4 hrs |
+
+### GitHub Inbound Webhook (the most important one)
+
+**In GitHub** — each client scan repo → Settings → Webhooks → Add:
+```
+Payload URL: https://aspis.cybershield-llc.com/api/webhooks/github
+Secret:      GITHUB_WEBHOOK_SECRET (new env var, store in Vercel + each scan repo)
+Events:      Workflow runs
+```
+
+**In Aspis** — new route `POST /api/webhooks/github`:
+- Verify `X-Hub-Signature-256` HMAC header (never skip — prevents fake completions)
+- On `workflow_run` completed → update `scan_jobs.status` to `complete` or `failed`
+- Triggers Supabase Realtime broadcast → browser updates instantly
+
+**Security rule:** Every webhook endpoint needs signature verification. Same HMAC-SHA256 pattern for GitHub, Slack, and any client-facing webhooks.
+
+---
+
+## What's Built — Complete File Map
+
+```
+~/Projects/aspis/
+├── src/
+│   ├── app/
+│   │   ├── page.tsx                          Landing page
+│   │   ├── layout.tsx                        Root layout + metadata
+│   │   ├── dashboard/page.tsx                Multi-client dashboard (server)
+│   │   ├── onboarding/page.tsx               4-step client wizard (client)
+│   │   ├── clients/[id]/
+│   │   │   ├── page.tsx                      Client findings + scan trigger
+│   │   │   └── setup/
+│   │   │       ├── m365/page.tsx             M365 integration guide
+│   │   │       ├── azure/page.tsx            Azure integration guide
+│   │   │       └── salesforce/page.tsx       Salesforce integration guide
+│   │   ├── api/
+│   │   │   ├── clients/route.ts              GET/POST clients
+│   │   │   └── clients/[id]/
+│   │   │       ├── scan/route.ts             POST trigger scan / GET history
+│   │   │       └── setup/route.ts            PATCH mark onboarding step complete
+│   │   └── actions/
+│   │       ├── clients.ts                    Server action: create client
+│   │       └── findings.ts                   Server action: update finding status
+│   ├── components/
+│   │   ├── FindingsTable.tsx                 Findings list + expand + remediation
+│   │   └── ScanTrigger.tsx                   Scan button + job history + polling
+│   ├── lib/
+│   │   ├── posture.ts                        A–F grade calculation
+│   │   ├── modules.ts                        Product module definitions
+│   │   └── supabase/
+│   │       ├── client.ts                     Anon client (browser)
+│   │       ├── server.ts                     Service role client (server only)
+│   │       └── schema.sql                    Full DB schema — run in Supabase SQL editor
+│   ├── types/index.ts                        TypeScript types
+│   └── proxy.ts                              Basic Auth middleware (Next.js 16)
+├── .github/
+│   ├── workflows/
+│   │   ├── scan-m365.yml                     Maester daily M365 scan
+│   │   └── scan-cloud.yml                    Prowler weekly Azure/AWS scan
+│   └── scripts/
+│       └── upload-findings.js                Parses scan JSON → upserts to Supabase
+├── scripts/
+│   └── seed-demo.js                          Demo data seeder (--wipe flag)
+├── vercel.json                               CORS config (scoped to domain)
+├── PROJECT-BRIEF.md                          Full project context for Claude sessions
+└── MORNING-BRIEF.md                          This file
+```
+
+---
+
+## Before First Paying Client — Must-Do List
+
+- [ ] **Rotate SUPABASE_SERVICE_ROLE_KEY** — was in chat session. Supabase → Settings → API → Regenerate → update Vercel env var → redeploy
+- [ ] **Rotate ASPIS_API_KEY** — same reason. `openssl rand -hex 32` → update Vercel + `.env.local`
+- [ ] **Add Supabase Auth** — right now it's one shared password. Before a second operator or paying client, add proper login
+- [ ] **Write RLS policies** — schema has RLS on but no user-scoped policies. Fine for solo operator, fix before multi-user
+- [ ] **Pin scanner versions** — `maester@main` in scan-m365.yml is unpinned (supply chain risk). Pin to a release tag
+
+---
+
+## CyberShield Portfolio
+
+| Product | URL | Status |
+|---|---|---|
+| **Aegis** | aegis.cybershield-llc.com | Live — awareness training + phishing sim |
+| **Aspis** | aspis.cybershield-llc.com | Live — CSPM/DSPM (this) |
+| **TTX** | — | Local only at ~/Projects/ttx-advisor |
+| **Axiom** | — | Not built yet — threat hunting |
+
+**Fastest path to revenue:** Aspis + Aegis as a bundle. Two products, one invoice, one conversation. The "Security Posture + Awareness Training" bundle covers the two biggest SMB gaps and justifies $800–$1,500/month without blinking.
+
+---
+
+## The Only Thing That Matters Today
+
+The platform is built. The demo works. The gap between now and a paying client is one conversation.
+
+Pick up the phone. Find a law firm, accounting practice, or healthcare office that uses M365. Offer a free scan. Show them the findings. The platform does the rest.
+
+**You don't need more features. You need your first client.**
