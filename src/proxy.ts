@@ -6,6 +6,7 @@ export function proxy(req: NextRequest) {
   const path = req.nextUrl.pathname
   if (!PROTECTED.some(p => path.startsWith(p))) return NextResponse.next()
 
+
   const auth = req.headers.get('authorization') ?? ''
   if (auth.startsWith('Basic ')) {
     const decoded  = Buffer.from(auth.slice(6), 'base64').toString()
