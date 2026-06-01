@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { computePosture } from '@/lib/posture'
 import { FindingsTable } from '@/components/FindingsTable'
+import { ScanTrigger } from '@/components/ScanTrigger'
 
 export const dynamic = 'force-dynamic'
 
@@ -116,10 +117,15 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
           </div>
         )}
 
+        {/* Scan trigger */}
+        <ScanTrigger clientId={id} clientSlug={client.slug} />
+
         {/* Findings table with remediation */}
-        {!onboardingComplete && findings.length === 0 ? (
+        {findings.length === 0 ? (
           <div className="bg-gray-900 border border-gray-800 rounded-xl text-center py-12 text-gray-500 text-sm">
-            Complete setup above to activate scanning.
+            {onboardingComplete
+              ? 'No findings yet. Run a scan above to populate results.'
+              : 'Complete setup above, then run a scan.'}
           </div>
         ) : (
           <FindingsTable findings={findings} clientId={id} />
